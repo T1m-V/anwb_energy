@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import dash
 import pandas as pd
@@ -48,6 +48,7 @@ app.layout = html.Div(
 )
 def update_figure(selected_date):
     # Retrieve the data for the selected date using the get_price_curve function
+    selected_date = datetime.strptime(selected_date, "%Y-%m-%d").date()
     gasData = get_raw_energy_prices(selected_date, "gas")
     gasPrices = get_price_curve(gasData)
 
