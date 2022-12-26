@@ -83,7 +83,7 @@ def get_price_curve(data):
 if __name__ == "__main__":
     # Specify the day we want the energy prices.
     today = date.today()
-    wantedDay = today - timedelta(days=4)
+    wantedDay = today - timedelta(days=5)
 
     # Collect the data
     dataGas = get_raw_energy_prices(wantedDay, "gas")
