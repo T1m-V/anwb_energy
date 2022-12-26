@@ -3778,6 +3778,8 @@ html {
    </script>
    <script charset="utf-8" src="/0.aca0e8a68d42c6135004.js">
    </script>
+   <script src="https://flex.energie.energyzero.nl/flex-rates-component.js" type="text/javascript">
+   </script>
   </p>
   <ez-app id="app">
   </ez-app>
