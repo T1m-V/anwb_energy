@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta
 
 import dash
 import dash_bootstrap_components as dbc
+import numpy as np
 import pandas as pd
 import plotly.express as px
 from dash import dcc, html
@@ -150,22 +151,48 @@ def update_hourly_figure(selected_date, sort):
     data = get_raw_energy_prices(selected_date, sort)
     prices = get_price_curve(data)
 
-    # Convert the data to a Pandas DataFrame
-    df = pd.DataFrame(
-        {"Time": pd.date_range(start=selected_date, freq="H", periods=24), "Price (€)": prices}
-    )
+    # If power than also add daily average
+    if sort == "gas":
+        df = pd.DataFrame(
+            {
+                "Time": pd.date_range(start=selected_date, freq="H", periods=24),
+                "Price (€)": prices,
+            }
+        )
+    else:
+
+        ma = [np.mean(prices)] * len(prices)
+
+        # Convert the data to a Pandas DataFrame
+        df = pd.DataFrame(
+            {
+                "Time": pd.date_range(start=selected_date, freq="H", periods=24),
+                "Price (€)": prices,
+                "Daily Average (€)": ma,
+            }
+        )
+
     df["Time"] = pd.to_datetime(df["Time"], unit="h")
     df.set_index("Time", inplace=True)
 
     # Plot the data using plotly
     # This weird try except loop fixes the invalid value error upon first starting.
     try:
-        fig_hourly = px.line(df, x=df.index, y="Price (€)")
+        fig = px.line(df, x=df.index, y=df.columns[0:])
     except Exception as e:
         if str(e) != "Invalid value":
             print(e)
-        fig_hourly = px.line(df, x=df.index, y="Price (€)")
-    return fig_hourly
+        fig = px.line(df, x=df.index, y=df.columns[0:])
+
+    fig.update_layout(
+        title="Daily Overview",
+        xaxis_title="Day",
+        yaxis_title="Price (€)",
+        legend_title="",
+        font=dict(family="Courier New, monospace", size=18, color="RebeccaPurple"),
+    )
+
+    return fig
 
 
 @app.callback(
@@ -185,15 +212,40 @@ def update_weekly_figure(selected_date, sort):
             {"Time": pd.date_range(start=start, freq="D", periods=7), "Price (€)": prices}
         )
     else:
+        day_before = selected_date - timedelta(7)
+        price_day_before = get_price_curve(get_raw_energy_prices(day_before, sort))
+
+        # Calculate daily average
+        ma = [0] * len(prices)
+        for i in range(len(prices)):
+            range_min = i - 24
+
+            if range_min < 0:
+                ma_el = (sum(price_day_before[range_min:]) + sum(prices[:i])) / 24
+            else:
+                ma_el = sum(prices[range_min:i]) / 24
+            ma[i] = ma_el
+
         df = pd.DataFrame(
-            {"Time": pd.date_range(start=start, freq="H", periods=24 * 7), "Price (€)": prices}
+            {
+                "Time": pd.date_range(start=start, freq="H", periods=24 * 7),
+                "Price": prices,
+                "Daily Average": ma,
+            }
         )
 
     df["Time"] = pd.to_datetime(df["Time"], unit="h")
     df.set_index("Time", inplace=True)
 
     # Plot the data using plotly
-    fig = px.line(df, x=df.index, y="Price (€)")
+    fig = px.line(df, x=df.index, y=df.columns[0:])
+    fig.update_layout(
+        title="Weekly Overview",
+        xaxis_title="Day",
+        yaxis_title="Price (€)",
+        legend_title="",
+        font=dict(family="Courier New, monospace", size=18, color="RebeccaPurple"),
+    )
 
     return fig
 
@@ -215,15 +267,41 @@ def update_monthly_figure(selected_date, sort):
             {"Time": pd.date_range(start=start, freq="D", periods=30), "Price (€)": prices}
         )
     else:
+        day_before = selected_date - timedelta(30)
+        price_day_before = get_price_curve(get_raw_energy_prices(day_before, sort))
+
+        # Calculate daily average
+        ma = [0] * len(prices)
+        for i in range(len(prices)):
+            range_min = i - 24
+
+            if range_min < 0:
+                ma_el = (sum(price_day_before[range_min:]) + sum(prices[:i])) / 24
+            else:
+                ma_el = sum(prices[range_min:i]) / 24
+            ma[i] = ma_el
+
         df = pd.DataFrame(
-            {"Time": pd.date_range(start=start, freq="H", periods=24 * 30), "Price (€)": prices}
+            {
+                "Time": pd.date_range(start=start, freq="H", periods=24 * 30),
+                "Hourly Price": prices,
+                "Daily Average": ma,
+            }
         )
 
     df["Time"] = pd.to_datetime(df["Time"], unit="h")
     df.set_index("Time", inplace=True)
 
     # Plot the data using plotly
-    fig = px.line(df, x=df.index, y="Price (€)")
+    fig = px.line(df, x=df.index, y=df.columns[0:])
+
+    fig.update_layout(
+        title="Monthly Overview",
+        xaxis_title="Day",
+        yaxis_title="Price (€)",
+        legend_title="",
+        font=dict(family="Courier New, monospace", size=18, color="RebeccaPurple"),
+    )
 
     return fig
 
