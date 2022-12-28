@@ -41,6 +41,8 @@ def energyzero_api_loader_today_tomorrow(today, usage):
 
 
 def get_raw_energy_prices(today, sort):
+    if sort == "power":
+        sort = "electricity"
     # Define paths
     libPath = f"./backlog_{sort}/{str(today)}{sort}.npy"
 

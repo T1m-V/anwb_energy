@@ -7,7 +7,7 @@ import plotly.express as px
 from dash import dcc, html
 from dash.dependencies import Input, Output
 
-from load_data import get_price_curve, get_raw_energy_prices
+from load_data import create_historic_overview, get_price_curve, get_raw_energy_prices
 
 # Calculate the start date as two weeks back from today
 start_date = date.today() - timedelta(weeks=2)
@@ -29,9 +29,15 @@ external_stylesheets = [
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 
-date_picker = dbc.Card(
+navigation = dbc.Card(
     dbc.CardBody(
         [
+            html.H1("Select your product."),
+            dcc.RadioItems(
+                id="product-source",
+                options=[{"label": "Power", "value": "power"}, {"label": "Gas", "value": "gas"}],
+                value="power",
+            ),
             html.H1("Select your date."),
             dcc.DatePickerSingle(
                 id="date-picker",
@@ -45,44 +51,53 @@ date_picker = dbc.Card(
     className="mt-2 ml-2",
 )
 
-electricity_tab = (
-    dcc.Tab(
-        label="Electricity Prices",
-        children=[
-            dbc.Card(
-                children=dbc.CardBody(
-                    dcc.Graph(
-                        id="hourly-prices-electricity",
-                        style={
-                            "width": "100%",
-                            "height": "100%",
-                            "display": "inline-block",
-                        },
-                    ),
-                ),
+hourly_card = (
+    dbc.Card(
+        children=dbc.CardBody(
+            dcc.Graph(
+                id="hourly-prices",
+                style={
+                    "width": "100%",
+                    "height": "100%",
+                    "display": "inline-block",
+                },
+            ),
+        ),
+    ),
+)
+
+weekly_card = (
+    dbc.Card(
+        [
+            dbc.CardBody(
+                dcc.Graph(
+                    id="weekly-prices",
+                    style={
+                        "width": "100%",
+                        "height": "100%",
+                        "display": "inline-block",
+                    },
+                )
             ),
         ],
     ),
 )
 
-gas_tab = dcc.Tab(
-    label="Gas Prices",
-    children=[
-        dbc.Card(
-            [
-                dbc.CardBody(
-                    dcc.Graph(
-                        id="hourly-prices-gas",
-                        style={
-                            "width": "100%",
-                            "height": "100%",
-                            "display": "inline-block",
-                        },
-                    )
-                ),
-            ],
-        ),
-    ],
+monthly_card = (
+    dbc.Card(
+        [
+            dbc.CardBody(
+                dcc.Graph(
+                    id="monthly-prices",
+                    style={
+                        "width": "100%",
+                        "height": "100%",
+                        "display": "inline-block",
+                    },
+                )
+            ),
+        ],
+    ),
 )
 
 # Define the layout of the app
@@ -91,16 +106,25 @@ app.layout = dbc.Container(
         dbc.Row(
             [
                 dbc.Col(
-                    [date_picker],
+                    [navigation],
                     width=3,
                 ),
                 dbc.Col(
                     [
                         dcc.Tabs(
-                            id="tab",
-                            children=[
-                                electricity_tab,
-                                gas_tab,
+                            [
+                                dcc.Tab(
+                                    label="Hourly Prices",
+                                    children=hourly_card,
+                                ),
+                                dcc.Tab(
+                                    label="Weekly Prices",
+                                    children=weekly_card,
+                                ),
+                                dcc.Tab(
+                                    label="Monthly Prices",
+                                    children=monthly_card,
+                                ),
                             ],
                         ),
                     ],
@@ -116,42 +140,92 @@ app.layout = dbc.Container(
 
 # Define the callback function to update the graph
 @app.callback(
-    Output("hourly-prices-gas", "figure"),
-    Output("hourly-prices-electricity", "figure"),
+    Output("hourly-prices", "figure"),
     Input("date-picker", "date"),
+    Input("product-source", "value"),
 )
-def update_figure(selected_date):
+def update_hourly_figure(selected_date, sort):
     # Retrieve the data for the selected date using the get_price_curve function
     selected_date = datetime.strptime(selected_date, "%Y-%m-%d").date()
-    gas_data = get_raw_energy_prices(selected_date, "gas")
-    gas_prices = get_price_curve(gas_data)
+    data = get_raw_energy_prices(selected_date, sort)
+    prices = get_price_curve(data)
 
     # Convert the data to a Pandas DataFrame
-    df_gas = pd.DataFrame(
-        {"Time": pd.date_range(start=selected_date, freq="H", periods=24), "Price (€)": gas_prices}
+    df = pd.DataFrame(
+        {"Time": pd.date_range(start=selected_date, freq="H", periods=24), "Price (€)": prices}
     )
-    df_gas["Time"] = pd.to_datetime(df_gas["Time"], unit="h")
-    df_gas.set_index("Time", inplace=True)
+    df["Time"] = pd.to_datetime(df["Time"], unit="h")
+    df.set_index("Time", inplace=True)
 
     # Plot the data using plotly
-    fig_gas = px.line(df_gas, x=df_gas.index, y="Price (€)")
+    # This weird try except loop fixes the invalid value error upon first starting.
+    try:
+        fig_hourly = px.line(df, x=df.index, y="Price (€)")
+    except Exception as e:
+        if str(e) != "Invalid value":
+            print(e)
+        fig_hourly = px.line(df, x=df.index, y="Price (€)")
+    return fig_hourly
 
-    electricity_data = get_raw_energy_prices(selected_date, "electricity")
-    electricity_prices = get_price_curve(electricity_data)
+
+@app.callback(
+    Output("weekly-prices", "figure"),
+    Input("date-picker", "date"),
+    Input("product-source", "value"),
+)
+def update_weekly_figure(selected_date, sort):
+    # Retrieve the data for the selected date using the get_price_curve function
+    selected_date = datetime.strptime(selected_date, "%Y-%m-%d").date()
+    prices = create_historic_overview(selected_date, 7, sort)
 
     # Convert the data to a Pandas DataFrame
-    df_electricity = pd.DataFrame(
-        {
-            "Time": pd.date_range(start=selected_date, freq="H", periods=24),
-            "Price (€)": electricity_prices,
-        }
-    )
-    df_electricity["Time"] = pd.to_datetime(df_electricity["Time"], unit="h")
-    df_electricity.set_index("Time", inplace=True)
+    start = selected_date - timedelta(days=7)
+    if sort == "gas":
+        df = pd.DataFrame(
+            {"Time": pd.date_range(start=start, freq="D", periods=7), "Price (€)": prices}
+        )
+    else:
+        df = pd.DataFrame(
+            {"Time": pd.date_range(start=start, freq="H", periods=24 * 7), "Price (€)": prices}
+        )
+
+    df["Time"] = pd.to_datetime(df["Time"], unit="h")
+    df.set_index("Time", inplace=True)
 
     # Plot the data using plotly
-    fig_electricity = px.line(df_electricity, x=df_electricity.index, y="Price (€)")
-    return fig_gas, fig_electricity
+    fig = px.line(df, x=df.index, y="Price (€)")
+
+    return fig
+
+
+@app.callback(
+    Output("monthly-prices", "figure"),
+    Input("date-picker", "date"),
+    Input("product-source", "value"),
+)
+def update_monthly_figure(selected_date, sort):
+    # Retrieve the data for the selected date using the get_price_curve function
+    selected_date = datetime.strptime(selected_date, "%Y-%m-%d").date()
+    prices = create_historic_overview(selected_date, 30, sort)
+
+    # Convert the data to a Pandas DataFrame
+    start = selected_date - timedelta(days=30)
+    if sort == "gas":
+        df = pd.DataFrame(
+            {"Time": pd.date_range(start=start, freq="D", periods=30), "Price (€)": prices}
+        )
+    else:
+        df = pd.DataFrame(
+            {"Time": pd.date_range(start=start, freq="H", periods=24 * 30), "Price (€)": prices}
+        )
+
+    df["Time"] = pd.to_datetime(df["Time"], unit="h")
+    df.set_index("Time", inplace=True)
+
+    # Plot the data using plotly
+    fig = px.line(df, x=df.index, y="Price (€)")
+
+    return fig
 
 
 # Run the app
