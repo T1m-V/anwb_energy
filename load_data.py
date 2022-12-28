@@ -80,18 +80,21 @@ def get_price_curve(data):
     return curve
 
 
+def create_historic_overview(end_date, length, sort):
+    historic_curve = []
+    for i in range(length):
+        delta = length - i - 1
+        wanted_day = end_date - timedelta(days=delta)
+        curve = get_price_curve(get_raw_energy_prices(wanted_day, sort))
+        if sort == "gas":
+            historic_curve.append(curve[-1])
+        else:
+            historic_curve.extend(curve)
+    return historic_curve
+
+
 if __name__ == "__main__":
     # Specify the day we want the energy prices.
     today = date.today()
-    wantedDay = today - timedelta(days=5)
-
-    # Collect the data
-    dataGas = get_raw_energy_prices(wantedDay, "gas")
-    dataElectricity = get_raw_energy_prices(wantedDay, "electricity")
-
-    gasCurve = get_price_curve(dataGas)
-    electricityCurve = get_price_curve(dataElectricity)
-
-    # Print the data
-    print("The electricity prices for", wantedDay, "are: ", electricityCurve)
-    print("The gas prices for", wantedDay, "are: ", gasCurve)
+    weekly_gas_curve = create_historic_overview(today, 14, "electricity")
+    print(weekly_gas_curve)

@@ -29,29 +29,69 @@ external_stylesheets = [
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 
+date_picker = dbc.Card(
+    dbc.CardBody(
+        [
+            html.H1("Select your date."),
+            dcc.DatePickerSingle(
+                id="date-picker",
+                min_date_allowed=start_date,
+                max_date_allowed=end_date,
+                initial_visible_month=today,
+                date=today,
+            ),
+        ],
+    ),
+    className="mt-2 ml-2",
+)
+
+electricity_tab = (
+    dcc.Tab(
+        label="Electricity Prices",
+        children=[
+            dbc.Card(
+                children=dbc.CardBody(
+                    dcc.Graph(
+                        id="hourly-prices-electricity",
+                        style={
+                            "width": "100%",
+                            "height": "100%",
+                            "display": "inline-block",
+                        },
+                    ),
+                ),
+            ),
+        ],
+    ),
+)
+
+gas_tab = dcc.Tab(
+    label="Gas Prices",
+    children=[
+        dbc.Card(
+            [
+                dbc.CardBody(
+                    dcc.Graph(
+                        id="hourly-prices-gas",
+                        style={
+                            "width": "100%",
+                            "height": "100%",
+                            "display": "inline-block",
+                        },
+                    )
+                ),
+            ],
+        ),
+    ],
+)
+
 # Define the layout of the app
 app.layout = dbc.Container(
     [
         dbc.Row(
             [
                 dbc.Col(
-                    [
-                        dbc.Card(
-                            dbc.CardBody(
-                                [
-                                    html.H1("Select your date."),
-                                    dcc.DatePickerSingle(
-                                        id="date-picker",
-                                        min_date_allowed=start_date,
-                                        max_date_allowed=end_date,
-                                        initial_visible_month=today,
-                                        date=today,
-                                    ),
-                                ],
-                            ),
-                            className="mt-2 ml-2",
-                        ),
-                    ],
+                    [date_picker],
                     width=3,
                 ),
                 dbc.Col(
@@ -59,42 +99,8 @@ app.layout = dbc.Container(
                         dcc.Tabs(
                             id="tab",
                             children=[
-                                dcc.Tab(
-                                    label="Electricity Prices",
-                                    children=[
-                                        dbc.Card(
-                                            children=dbc.CardBody(
-                                                dcc.Graph(
-                                                    id="hourly-prices-electricity",
-                                                    style={
-                                                        "width": "100%",
-                                                        "height": "100%",
-                                                        "display": "inline-block",
-                                                    },
-                                                ),
-                                            ),
-                                        ),
-                                    ],
-                                ),
-                                dcc.Tab(
-                                    label="Gas Prices",
-                                    children=[
-                                        dbc.Card(
-                                            [
-                                                dbc.CardBody(
-                                                    dcc.Graph(
-                                                        id="hourly-prices-gas",
-                                                        style={
-                                                            "width": "100%",
-                                                            "height": "100%",
-                                                            "display": "inline-block",
-                                                        },
-                                                    )
-                                                ),
-                                            ],
-                                        ),
-                                    ],
-                                ),
+                                electricity_tab,
+                                gas_tab,
                             ],
                         ),
                     ],
